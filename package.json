@@ -13,5 +13,6 @@
   },
   "keywords": [],
   "author": "timplexz",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {}
 }
