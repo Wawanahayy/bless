@@ -136,7 +136,7 @@ async function pingNodeWithRetry(nodeId) {
         return await pingNode(nodeId);
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Error while pinging node, retrying in 5 seconds...`);
-        await new Promise(resolve => setTimeout(resolve, 5000)); 
+        await new Promise(resolve => setTimeout(resolve, 15000)); 
         return pingNodeWithRetry(nodeId); 
     }
 }
