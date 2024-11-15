@@ -10,9 +10,14 @@ async function loadFetch() {
 const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
 const ipServiceUrl = "https://tight-block-2413.txlabs.workers.dev";
 
+async function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function getNodeData(authToken) {
     const nodesUrl = `${apiBaseUrl}/nodes`;
     console.log(`[${new Date().toISOString()}] Fetching node information...`);
+
     try {
         const fetch = await loadFetch();
         const response = await fetch(nodesUrl, {
@@ -22,9 +27,11 @@ async function getNodeData(authToken) {
                 'Content-Type': 'application/json',
             },
         });
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
+
         const data = await response.json();
         console.log(`[${new Date().toISOString()}] Data fetched successfully:`, data);
         
@@ -42,7 +49,9 @@ async function getNodeData(authToken) {
         return { nodeId, hardwareId };
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Error fetching node data:`, error);
-        throw error;
+        console.log(`[${new Date().toISOString()}] Retrying in 5 seconds...`);
+        await delay(5000); 
+        return getNodeData(authToken); 
     }
 }
 
@@ -66,13 +75,14 @@ async function registerNode(nodeId, hardwareId) {
         },
         body: JSON.stringify({ ipAddress, hardwareId })
     });
-    
+
+
+    const textResponse = await response.text(); 
     let data;
     try {
-        data = await response.json();
+        data = JSON.parse(textResponse); 
     } catch (error) {
-        const text = await response.text();
-        console.error(`[${new Date().toISOString()}] Failed to parse JSON. Response text:`, text);
+        console.error(`[${new Date().toISOString()}] Failed to parse JSON. Response text:`, textResponse);
         throw error;
     }
     
@@ -120,6 +130,17 @@ async function pingNode(nodeId) {
     return data;
 }
 
+
+async function pingNodeWithRetry(nodeId) {
+    try {
+        return await pingNode(nodeId);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Error while pinging node, retrying in 5 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 5000)); 
+        return pingNodeWithRetry(nodeId); 
+    }
+}
+
 async function fetchIpAddress() {
     const fetch = await loadFetch();
     const response = await fetch(ipServiceUrl);
@@ -154,7 +175,7 @@ async function loading_step() {
 
 async function runAll() {
     try {
-        loading_step();
+        await loading_step();
         const authToken = await readAuthToken();
         const { nodeId, hardwareId } = await getNodeData(authToken);
         console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
@@ -166,12 +187,12 @@ async function runAll() {
         console.log(`[${new Date().toISOString()}] Session started. Response:`, startSessionResponse);
         
         console.log(`[${new Date().toISOString()}] Sending initial ping...`);
-        const initialPingResponse = await pingNode(nodeId);
+        const initialPingResponse = await pingNodeWithRetry(nodeId); // Menggunakan retry tanpa batas percobaan
         
         setInterval(async () => {
             console.log(`[${new Date().toISOString()}] Sending ping...`);
-            const pingResponse = await pingNode(nodeId);
-        }, 60000);
+            await pingNodeWithRetry(nodeId); // Menggunakan retry tanpa batas percobaan dalam interval
+        }, 150000);  // Mengirim ping setiap 60 detik
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred:`, error);
     }
