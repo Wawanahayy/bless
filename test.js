@@ -184,7 +184,6 @@ async function loading_step() {
     }
 }
 
-const fs = require('fs');
 
 async function readUserCount() {
     return new Promise((resolve, reject) => {
