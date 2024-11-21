@@ -184,34 +184,65 @@ async function loading_step() {
     }
 }
 
+const fs = require('fs');
+
+async function readUserCount() {
+    return new Promise((resolve, reject) => {
+        // Membaca file user.txt
+        fs.readFile('user.txt', 'utf8', (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                const count = parseInt(data.trim(), 10); // Mengambil angka dari file dan mengubahnya ke integer
+                if (isNaN(count)) {
+                    reject(new Error('File user.txt tidak berisi angka yang valid.'));
+                } else {
+                    resolve(count);
+                }
+            }
+        });
+    });
+}
+
 async function runAllForAccounts() {
-    const accounts = ['account1', 'account2', 'account3']; // Daftar akun
-    for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
-        const account = accounts[accountIndex]; // Define account within the loop
-        try {
-            console.log(`[${new Date().toISOString()}] Running for ${account}...`);
-            await loading_step();
-            const authToken = await readAuthToken(accountIndex);
-            const { nodeId, hardwareId } = await getNodeData(authToken);
-            console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
-            
-            const registrationResponse = await registerNode(nodeId, hardwareId);
-            console.log(`[${new Date().toISOString()}] Node registration completed. Response:`, registrationResponse);
-            
-            const startSessionResponse = await startSession(nodeId);
-            console.log(`[${new Date().toISOString()}] Session started. Response:`, startSessionResponse);
-            
-            console.log(`[${new Date().toISOString()}] Sending initial ping...`);
-            await pingNodeWithRetry(nodeId);
-            
-            setInterval(async () => {
-                console.log(`[${new Date().toISOString()}] Sending ping...`);
+    try {
+        const accountCount = await readUserCount(); // Mendapatkan jumlah akun dari user.txt
+        const accounts = Array(accountCount).fill(null).map((_, index) => `account${index + 1}`); // Membuat array akun sesuai jumlah
+
+        console.log(`[${new Date().toISOString()}] Jumlah akun yang akan diproses: ${accountCount}`);
+        
+        for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
+            const account = accounts[accountIndex];
+            try {
+                console.log(`[${new Date().toISOString()}] Running for ${account}...`);
+                await loading_step();
+                const authToken = await readAuthToken(accountIndex);
+                const { nodeId, hardwareId } = await getNodeData(authToken);
+                console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
+                
+                const registrationResponse = await registerNode(nodeId, hardwareId);
+                console.log(`[${new Date().toISOString()}] Node registration completed. Response:`, registrationResponse);
+                
+                const startSessionResponse = await startSession(nodeId);
+                console.log(`[${new Date().toISOString()}] Session started. Response:`, startSessionResponse);
+                
+                console.log(`[${new Date().toISOString()}] Sending initial ping...`);
                 await pingNodeWithRetry(nodeId);
-            }, 60000);  // Mengirim ping setiap 60 detik
-        } catch (error) {
-            console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error); // Now account is in scope
+                
+                setInterval(async () => {
+                    console.log(`[${new Date().toISOString()}] Sending ping...`);
+                    await pingNodeWithRetry(nodeId);
+                }, 60000);  // Mengirim ping setiap 60 detik
+            } catch (error) {
+                console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error);
+            }
         }
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Error reading user count from user.txt:`, error);
     }
 }
+
+runAllForAccounts();
+
 
 runAllForAccounts();
