@@ -58,40 +58,12 @@ async function getNodeData(authToken) {
 async function readAuthToken(accountIndex) {
     const data = await fs.readFile('user.txt', 'utf-8');
     const tokens = data.split('\n'); // Memecah data berdasarkan baris
-    return tokens[accountIndex].trim();  // Mengambil token berdasarkan indeks akun
-}
-
-async function runAllForAccounts() {
-    const accounts = ['account1', 'account2', 'account3']; // Daftar akun
-    for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
-        try {
-            const account = accounts[accountIndex];
-            console.log(`[${new Date().toISOString()}] Running for ${account}...`);
-            await loading_step();
-            
-            const authToken = await readAuthToken(accountIndex);  // Membaca token berdasarkan indeks
-            const { nodeId, hardwareId } = await getNodeData(authToken);
-            console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
-            
-            const registrationResponse = await registerNode(nodeId, hardwareId);
-            console.log(`[${new Date().toISOString()}] Node registration completed. Response:`, registrationResponse);
-            
-            const startSessionResponse = await startSession(nodeId);
-            console.log(`[${new Date().toISOString()}] Session started. Response:`, startSessionResponse);
-            
-            console.log(`[${new Date().toISOString()}] Sending initial ping...`);
-            await pingNodeWithRetry(nodeId);
-            
-            setInterval(async () => {
-                console.log(`[${new Date().toISOString()}] Sending ping...`);
-                await pingNodeWithRetry(nodeId);
-            }, 60000);  // Mengirim ping setiap 60 detik
-        } catch (error) {
-            console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error);
-        }
+    const token = tokens[accountIndex]?.trim();  // Menggunakan optional chaining untuk menghindari undefined
+    if (!token) {
+        throw new Error(`Token untuk akun di indeks ${accountIndex} tidak ditemukan atau kosong.`);
     }
+    return token;
 }
-
 
 async function registerNode(nodeId, hardwareId) {
     const fetch = await loadFetch();
@@ -214,11 +186,13 @@ async function loading_step() {
 
 async function runAllForAccounts() {
     const accounts = ['account1', 'account2', 'account3']; // Daftar akun
-    for (let account of accounts) {
+    for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
         try {
+            const account = accounts[accountIndex];
             console.log(`[${new Date().toISOString()}] Running for ${account}...`);
             await loading_step();
-            const authToken = await readAuthToken();
+            
+            const authToken = await readAuthToken(accountIndex);  // Membaca token berdasarkan indeks
             const { nodeId, hardwareId } = await getNodeData(authToken);
             console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
             
@@ -229,11 +203,11 @@ async function runAllForAccounts() {
             console.log(`[${new Date().toISOString()}] Session started. Response:`, startSessionResponse);
             
             console.log(`[${new Date().toISOString()}] Sending initial ping...`);
-            await pingNodeWithRetry(nodeId); // Menggunakan retry tanpa batas percobaan
+            await pingNodeWithRetry(nodeId);
             
             setInterval(async () => {
                 console.log(`[${new Date().toISOString()}] Sending ping...`);
-                await pingNodeWithRetry(nodeId); // Menggunakan retry tanpa batas percobaan dalam interval
+                await pingNodeWithRetry(nodeId);
             }, 60000);  // Mengirim ping setiap 60 detik
         } catch (error) {
             console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error);
