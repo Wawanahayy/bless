@@ -1,7 +1,8 @@
-const fs = require('fs').promises; 
+const fs = require('fs').promises;
 const axios = require('axios');
 const os = require('os');
 
+// Fungsi untuk memuat fetch secara dinamis
 async function loadFetch() {
     const fetch = await import('node-fetch').then(module => module.default);
     return fetch;
@@ -10,10 +11,35 @@ async function loadFetch() {
 const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
 const ipServiceUrl = "https://tight-block-2413.txlabs.workers.dev";
 
+// Fungsi untuk delay
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Fungsi untuk membaca akun dari file user.txt
+async function readAccountsFromFile() {
+    try {
+        const data = await fs.readFile('user.txt', 'utf-8');
+        const accounts = data.split('\n').map(account => account.trim()).filter(account => account !== ''); // Menghapus akun kosong
+        return accounts;
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Error reading accounts file:`, error);
+        return []; // Mengembalikan array kosong jika ada kesalahan
+    }
+}
+
+// Fungsi untuk membaca auth token
+async function readAuthToken(accountIndex) {
+    const data = await fs.readFile('user.txt', 'utf-8');
+    const tokens = data.split('\n'); // Memecah data berdasarkan baris
+    const token = tokens[accountIndex]?.trim();  // Menggunakan optional chaining untuk menghindari undefined
+    if (!token) {
+        throw new Error(`Token untuk akun di indeks ${accountIndex} tidak ditemukan atau kosong.`);
+    }
+    return token;
+}
+
+// Fungsi untuk mengambil data node
 async function getNodeData(authToken) {
     const nodesUrl = `${apiBaseUrl}/nodes`;
     console.log(`[${new Date().toISOString()}] Fetching node information...`);
@@ -55,16 +81,7 @@ async function getNodeData(authToken) {
     }
 }
 
-async function readAuthToken(accountIndex) {
-    const data = await fs.readFile('user.txt', 'utf-8');
-    const tokens = data.split('\n'); // Memecah data berdasarkan baris
-    const token = tokens[accountIndex]?.trim();  // Menggunakan optional chaining untuk menghindari undefined
-    if (!token) {
-        throw new Error(`Token untuk akun di indeks ${accountIndex} tidak ditemukan atau kosong.`);
-    }
-    return token;
-}
-
+// Fungsi untuk mendaftar node
 async function registerNode(nodeId, hardwareId) {
     const fetch = await loadFetch();
     const authToken = await readAuthToken();
@@ -94,6 +111,7 @@ async function registerNode(nodeId, hardwareId) {
     return data;
 }
 
+// Fungsi untuk memulai sesi
 async function startSession(nodeId) {
     const fetch = await loadFetch();
     const authToken = await readAuthToken();
@@ -112,6 +130,7 @@ async function startSession(nodeId) {
     return data;
 }
 
+// Fungsi untuk mem-ping node
 async function pingNode(nodeId) {
     const fetch = await loadFetch();
     const chalk = await import('chalk');
@@ -134,24 +153,26 @@ async function pingNode(nodeId) {
     return data;
 }
 
+// Fungsi untuk mem-ping dengan retry
 async function pingNodeWithRetry(nodeId) {
     let attempts = 0;
     const maxAttempts = 5;
 
     while (attempts < maxAttempts) {
         try {
-            return await pingNode(nodeId); // Hanya mencoba sekali tanpa log error yang berulang
+            return await pingNode(nodeId);
         } catch (error) {
             attempts++;
             if (attempts >= maxAttempts) {
                 console.error(`[${new Date().toISOString()}] Max retries reached for nodeId: ${nodeId}`);
-                throw error; // Melempar error jika retry mencapai batas maksimal
+                throw error;
             }
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Menunggu 5 detik sebelum mencoba lagi
+            await new Promise(resolve => setTimeout(resolve, 5000));
         }
     }
 }
 
+// Fungsi untuk mendapatkan alamat IP
 async function fetchIpAddress() {
     const fetch = await loadFetch();
     const response = await fetch(ipServiceUrl);
@@ -160,6 +181,7 @@ async function fetchIpAddress() {
     return data.ip;
 }
 
+// Fungsi untuk menjalankan skrip loading
 async function loading_step() {
     console.log("Mengunduh dan menjalankan skrip display...");
     
@@ -184,10 +206,16 @@ async function loading_step() {
     }
 }
 
+// Fungsi utama untuk menjalankan semua akun
 async function runAllForAccounts() {
-    const accounts = ['account1', 'account2', 'account3']; // Daftar akun
+    const accounts = await readAccountsFromFile(); // Membaca akun dari file secara otomatis
+    if (accounts.length === 0) {
+        console.error(`[${new Date().toISOString()}] No accounts found in the file.`);
+        return; // Jika tidak ada akun, hentikan eksekusi
+    }
+
     for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
-        const account = accounts[accountIndex]; // Define account within the loop
+        const account = accounts[accountIndex];
         try {
             console.log(`[${new Date().toISOString()}] Running for ${account}...`);
             await loading_step();
@@ -204,14 +232,12 @@ async function runAllForAccounts() {
             console.log(`[${new Date().toISOString()}] Sending initial ping...`);
             await pingNodeWithRetry(nodeId);
             
-            setInterval(async () => {
-                console.log(`[${new Date().toISOString()}] Sending ping...`);
-                await pingNodeWithRetry(nodeId);
-            }, 60000);  // Mengirim ping setiap 60 detik
+            console.log(`[${new Date().toISOString()}] Finished processing for ${account}.`);
+            await delay(1500);
         } catch (error) {
-            console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error); // Now account is in scope
+            console.error(`[${new Date().toISOString()}] Error during processing for ${account}:`, error);
         }
     }
 }
 
-runAllForAccounts();
+runAllForAccounts(); // Mulai menjalankan untuk semua akun secara otomatis.
