@@ -17,7 +17,7 @@ async function delay(ms) {
 
 // Membaca semua token otentikasi dari file
 async function readAuthTokens() {
-    const data = await fs.readFile('user_tokens.txt', 'utf-8');
+    const data = await fs.readFile('user.txt', 'utf-8');
     return data.split('\n').map(token => token.trim());
 }
 
