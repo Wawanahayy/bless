@@ -187,12 +187,11 @@ async function loading_step() {
 async function runAllForAccounts() {
     const accounts = ['account1', 'account2', 'account3']; // Daftar akun
     for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
+        const account = accounts[accountIndex]; // Define account within the loop
         try {
-            const account = accounts[accountIndex];
             console.log(`[${new Date().toISOString()}] Running for ${account}...`);
             await loading_step();
-            
-            const authToken = await readAuthToken(accountIndex);  // Membaca token berdasarkan indeks
+            const authToken = await readAuthToken(accountIndex);
             const { nodeId, hardwareId } = await getNodeData(authToken);
             console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
             
@@ -210,7 +209,7 @@ async function runAllForAccounts() {
                 await pingNodeWithRetry(nodeId);
             }, 60000);  // Mengirim ping setiap 60 detik
         } catch (error) {
-            console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error);
+            console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error); // Now account is in scope
         }
     }
 }
