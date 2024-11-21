@@ -1,0 +1,26 @@
+[
+    {
+        "usertoken": "Token_Akses_User_1",
+        "nodes": [
+            {
+                "nodeId": "node1",
+                "hardwareId": "hw1",
+                "proxy": "http://username:password@proxyserver:port"
+            },
+            {
+                "nodeId": "node2",
+                "hardwareId": "hw2",
+                "proxy": "http://username:password@proxyserver:port"
+            }
+        ]
+    },
+    {
+        "usertoken": "Token_Akses_User_2",
+        "nodes": [
+            {
+                "nodeId": "node3",
+                "hardwareId": "hw3",
+            }
+        ]
+    }
+]
