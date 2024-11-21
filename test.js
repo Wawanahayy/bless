@@ -166,11 +166,12 @@ async function loading_step() {
     }
 }
 
-// Fungsi utama untuk menjalankan semua akun secara paralel
+// Fungsi utama untuk menjalankan semua akun secara paralel dengan delay
 async function runAll() {
     try {
         const authTokens = await readAuthTokens(); // Membaca semua token otentikasi
-        const results = await Promise.all(authTokens.map(async (authToken) => {
+        for (let i = 0; i < authTokens.length; i++) {
+            const authToken = authTokens[i];
             console.log(`[${new Date().toISOString()}] Processing account with authToken: ${authToken}`);
 
             const { nodeId, hardwareId } = await getNodeData(authToken); // Ambil data node untuk setiap token
@@ -182,15 +183,22 @@ async function runAll() {
             const startSessionResponse = await startSession(nodeId, authToken); // Mulai session
             console.log(`[${new Date().toISOString()}] Session started for node ${nodeId}. Response:`, startSessionResponse);
 
+            // Delay 2 detik setelah login untuk ping pertama
+            await delay(2000);
             const initialPingResponse = await pingNode(nodeId, authToken); // Kirim ping awal
             console.log(`[${new Date().toISOString()}] Initial ping sent for token ${authToken}.`);
 
-            setInterval(async () => {
-                console.log(`[${new Date().toISOString()}] Sending ping for node ${nodeId}...`);
-                await pingNode(nodeId, authToken); // Kirim ping setiap 60 detik
-            }, 60000);
+            // Delay 13 menit sebelum ping kedua
+            await delay(13 * 60 * 1000); // 13 menit dalam milidetik
+            console.log(`[${new Date().toISOString()}] Sending second ping after 13 minutes...`);
+            await pingNode(nodeId, authToken); // Kirim ping kedua
 
-        }));
+            // Delay 3 detik antar akun
+            if (i < authTokens.length - 1) {
+                console.log(`[${new Date().toISOString()}] Waiting for 3 seconds before processing next account...`);
+                await delay(3000);
+            }
+        }
 
         console.log(`[${new Date().toISOString()}] All accounts processed successfully`);
     } catch (error) {
