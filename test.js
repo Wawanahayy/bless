@@ -195,23 +195,7 @@ async function loading_step() {
     }
 }
 
-// Membaca jumlah akun dari user.txt
-async function readUserCount() {
-    return new Promise((resolve, reject) => {
-        fs.readFile('user.txt', 'utf8', (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                const count = parseInt(data.trim(), 10);
-                if (isNaN(count)) {
-                    reject(new Error('File user.txt tidak berisi angka yang valid.'));
-                } else {
-                    resolve(count);
-                }
-            }
-        });
-    });
-}
+
 
 // Menjalankan semua proses untuk setiap akun
 async function runAllForAccounts() {
