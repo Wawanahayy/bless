@@ -110,7 +110,6 @@ async function startSession(nodeId, authToken) {
     return data;
 }
 
-// Mem-ping node untuk setiap akun
 async function pingNode(nodeId, authToken) {
     const fetch = await loadFetch();
     const chalk = await import('chalk');
@@ -125,12 +124,16 @@ async function pingNode(nodeId, authToken) {
     });
 
     const data = await response.json();
-    const lastPing = data.pings[data.pings.length - 1].timestamp;
+
+    // Check if 'data.pings' exists and is an array with at least one element
+    const lastPing = (data.pings && data.pings.length > 0) ? data.pings[data.pings.length - 1].timestamp : 'No pings available';
+
     const logMessage = `[${new Date().toISOString()}] Ping response for token ${authToken}, ID: ${chalk.default.green(data._id)}, NodeID: ${chalk.default.green(data.nodeId)}, Last Ping: ${chalk.default.yellow(lastPing)}`;
     console.log(logMessage);
 
     return data;
 }
+
 
 // Mengambil IP address
 async function fetchIpAddress() {
