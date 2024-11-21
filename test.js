@@ -1,23 +1,19 @@
-const fs = require('fs').promises;
+const fs = require('fs').promises; 
 const axios = require('axios');
 const os = require('os');
 
-// Fungsi untuk memuat node-fetch
 async function loadFetch() {
     const fetch = await import('node-fetch').then(module => module.default);
     return fetch;
 }
 
-// URL dasar API dan IP service
 const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
 const ipServiceUrl = "https://tight-block-2413.txlabs.workers.dev";
 
-// Fungsi delay untuk menunggu beberapa waktu
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Mengambil data node dengan authToken
 async function getNodeData(authToken) {
     const nodesUrl = `${apiBaseUrl}/nodes`;
     console.log(`[${new Date().toISOString()}] Fetching node information...`);
@@ -54,23 +50,21 @@ async function getNodeData(authToken) {
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Error fetching node data:`, error);
         console.log(`[${new Date().toISOString()}] Retrying in 5 seconds...`);
-        await delay(5000);
+        await delay(5000); 
         return getNodeData(authToken); 
     }
 }
 
-// Membaca token otentikasi dari file user.txt
 async function readAuthToken(accountIndex) {
     const data = await fs.readFile('user.txt', 'utf-8');
-    const tokens = data.split('\n'); 
-    const token = tokens[accountIndex]?.trim();
+    const tokens = data.split('\n'); // Memecah data berdasarkan baris
+    const token = tokens[accountIndex]?.trim();  // Menggunakan optional chaining untuk menghindari undefined
     if (!token) {
         throw new Error(`Token untuk akun di indeks ${accountIndex} tidak ditemukan atau kosong.`);
     }
     return token;
 }
 
-// Mendaftar node
 async function registerNode(nodeId, hardwareId) {
     const fetch = await loadFetch();
     const authToken = await readAuthToken();
@@ -87,7 +81,7 @@ async function registerNode(nodeId, hardwareId) {
         body: JSON.stringify({ ipAddress, hardwareId })
     });
 
-    const textResponse = await response.text();
+    const textResponse = await response.text(); 
     let data;
     try {
         data = JSON.parse(textResponse); 
@@ -100,7 +94,6 @@ async function registerNode(nodeId, hardwareId) {
     return data;
 }
 
-// Memulai sesi untuk node
 async function startSession(nodeId) {
     const fetch = await loadFetch();
     const authToken = await readAuthToken();
@@ -119,7 +112,6 @@ async function startSession(nodeId) {
     return data;
 }
 
-// Melakukan ping ke node
 async function pingNode(nodeId) {
     const fetch = await loadFetch();
     const chalk = await import('chalk');
@@ -142,26 +134,24 @@ async function pingNode(nodeId) {
     return data;
 }
 
-// Retry ping jika gagal
 async function pingNodeWithRetry(nodeId) {
     let attempts = 0;
     const maxAttempts = 5;
 
     while (attempts < maxAttempts) {
         try {
-            return await pingNode(nodeId);
+            return await pingNode(nodeId); // Hanya mencoba sekali tanpa log error yang berulang
         } catch (error) {
             attempts++;
             if (attempts >= maxAttempts) {
                 console.error(`[${new Date().toISOString()}] Max retries reached for nodeId: ${nodeId}`);
-                throw error;
+                throw error; // Melempar error jika retry mencapai batas maksimal
             }
-            await new Promise(resolve => setTimeout(resolve, 5000)); 
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Menunggu 5 detik sebelum mencoba lagi
         }
     }
 }
 
-// Mendapatkan IP address
 async function fetchIpAddress() {
     const fetch = await loadFetch();
     const response = await fetch(ipServiceUrl);
@@ -170,7 +160,6 @@ async function fetchIpAddress() {
     return data.ip;
 }
 
-// Mengunduh dan menjalankan skrip display.sh
 async function loading_step() {
     console.log("Mengunduh dan menjalankan skrip display...");
     
@@ -195,49 +184,34 @@ async function loading_step() {
     }
 }
 
-
-
-// Menjalankan semua proses untuk setiap akun
 async function runAllForAccounts() {
-    try {
-        const accountCount = await readUserCount();
-        const accounts = Array(accountCount).fill(null).map((_, index) => `account${index + 1}`);
-
-        console.log(`[${new Date().toISOString()}] Jumlah akun yang akan diproses: ${accountCount}`);
-        
-        for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
-            const account = accounts[accountIndex];
-            try {
-                console.log(`[${new Date().toISOString()}] Running for ${account}...`);
-                await loading_step();
-                const authToken = await readAuthToken(accountIndex);
-                const { nodeId, hardwareId } = await getNodeData(authToken);
-                console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
-                
-                const registrationResponse = await registerNode(nodeId, hardwareId);
-                console.log(`[${new Date().toISOString()}] Node registration completed. Response:`, registrationResponse);
-                
-                const startSessionResponse = await startSession(nodeId);
-                console.log(`[${new Date().toISOString()}] Session started. Response:`, startSessionResponse);
-                
-                console.log(`[${new Date().toISOString()}] Sending initial ping...`);
-                await pingNodeWithRetry(nodeId);
-                
-                setInterval(async () => {
-                    console.log(`[${new Date().toISOString()}] Sending ping every 5 minutes...`);
-                    await pingNodeWithRetry(nodeId);
-                }, 5 * 60 * 1000); // 5 menit interval
-                
-            } catch (error) {
-                console.error(`[${new Date().toISOString()}] Error during processing account ${account}:`, error);
-            }
+    const accounts = ['account1', 'account2', 'account3']; // Daftar akun
+    for (let accountIndex = 0; accountIndex < accounts.length; accountIndex++) {
+        const account = accounts[accountIndex]; // Define account within the loop
+        try {
+            console.log(`[${new Date().toISOString()}] Running for ${account}...`);
+            await loading_step();
+            const authToken = await readAuthToken(accountIndex);
+            const { nodeId, hardwareId } = await getNodeData(authToken);
+            console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
             
-            await delay(180000); // 3 menit delay antara akun
+            const registrationResponse = await registerNode(nodeId, hardwareId);
+            console.log(`[${new Date().toISOString()}] Node registration completed. Response:`, registrationResponse);
+            
+            const startSessionResponse = await startSession(nodeId);
+            console.log(`[${new Date().toISOString()}] Session started. Response:`, startSessionResponse);
+            
+            console.log(`[${new Date().toISOString()}] Sending initial ping...`);
+            await pingNodeWithRetry(nodeId);
+            
+            setInterval(async () => {
+                console.log(`[${new Date().toISOString()}] Sending ping...`);
+                await pingNodeWithRetry(nodeId);
+            }, 60000);  // Mengirim ping setiap 60 detik
+        } catch (error) {
+            console.error(`[${new Date().toISOString()}] An error occurred for account ${account}:`, error); // Now account is in scope
         }
-    } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error in runAllForAccounts:`, error);
     }
 }
 
-// Menjalankan semua proses untuk akun-akun yang ada
 runAllForAccounts();
