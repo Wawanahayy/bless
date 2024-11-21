@@ -131,10 +131,11 @@ async function pingNode(nodeId, authToken) {
     const data = await response.json();
     console.log("API Response:", data);  // Log the entire response for debugging
 
-    const nodeId = data.nodeId || 'Unknown Node ID';  // Default value if nodeId is not present
+    // Do not redeclare nodeId; use the existing variable or check if it's missing
+    const finalNodeId = data.nodeId || 'Unknown Node ID';  // Use finalNodeId instead of redeclaring nodeId
     const lastPing = (data.pings && data.pings.length > 0) ? data.pings[data.pings.length - 1].timestamp : 'No pings available';
 
-    const logMessage = `[${new Date().toISOString()}] Ping response for token ${authToken}, ID: ${chalk.default.green(data._id)}, NodeID: ${chalk.default.green(nodeId)}, Last Ping: ${chalk.default.yellow(lastPing)}`;
+    const logMessage = `[${new Date().toISOString()}] Ping response for token ${authToken}, ID: ${chalk.default.green(data._id)}, NodeID: ${chalk.default.green(finalNodeId)}, Last Ping: ${chalk.default.yellow(lastPing)}`;
     console.log(logMessage);
 
     return data;
