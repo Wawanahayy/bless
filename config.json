@@ -1,16 +1,11 @@
 [
     {
-        "usertoken": "Token_Akses_User_1",
+        "usertoken": "Token_Akses_User_1/B7_token",
         "nodes": [
             {
-                "nodeId": "node1",
-                "hardwareId": "hw1",
-                "proxy": "http://username:password@proxyserver:port"
-            },
-            {
-                "nodeId": "node2",
-                "hardwareId": "hw2",
-                "proxy": "http://username:password@proxyserver:port"
+                "nodeId": "node/pubkey",
+                "hardwareId": "hardwere_ID_exe",
+                "proxy": "username:paswword@ip:port"
             }
         ]
     },
@@ -20,6 +15,7 @@
             {
                 "nodeId": "node3",
                 "hardwareId": "hw3",
+                "proxy": "" 
             }
         ]
     }
