@@ -123,12 +123,18 @@ async function pingNode(nodeId, authToken) {
         }
     });
 
-    const data = await response.json();
+    if (!response.ok) {
+        console.error(`API request failed with status: ${response.status}`);
+        return;
+    }
 
-    // Check if 'data.pings' exists and is an array with at least one element
+    const data = await response.json();
+    console.log("API Response:", data);  // Log the entire response for debugging
+
+    const nodeId = data.nodeId || 'Unknown Node ID';  // Default value if nodeId is not present
     const lastPing = (data.pings && data.pings.length > 0) ? data.pings[data.pings.length - 1].timestamp : 'No pings available';
 
-    const logMessage = `[${new Date().toISOString()}] Ping response for token ${authToken}, ID: ${chalk.default.green(data._id)}, NodeID: ${chalk.default.green(data.nodeId)}, Last Ping: ${chalk.default.yellow(lastPing)}`;
+    const logMessage = `[${new Date().toISOString()}] Ping response for token ${authToken}, ID: ${chalk.default.green(data._id)}, NodeID: ${chalk.default.green(nodeId)}, Last Ping: ${chalk.default.yellow(lastPing)}`;
     console.log(logMessage);
 
     return data;
