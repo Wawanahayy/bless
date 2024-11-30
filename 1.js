@@ -22,6 +22,14 @@ async function readAuthTokens() {
         .filter(token => token.length > 0); // Hanya token yang valid
 }
 
+// Fungsi untuk mengambil IP Address
+async function fetchIpAddress() {
+    const fetch = await loadFetch();
+    const response = await fetch(ipServiceUrl);
+    const data = await response.json();
+    return data.ip;
+}
+
 // Mengambil data node untuk setiap akun
 async function getNodeData(authToken) {
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -56,64 +64,31 @@ async function getNodeData(authToken) {
     }
 }
 
-// Registrasi node untuk setiap akun
-async function registerNode(nodeId, hardwareId, authToken) {
+// Fungsi untuk melakukan ping dengan menggunakan nodeId, hardwareId, dan authToken
+async function pingNode(nodeId, hardwareId, authToken) {
     const fetch = await loadFetch();
-    const registerUrl = `${apiBaseUrl}/nodes/${nodeId}`;
-
-    const ipAddress = await fetchIpAddress(); // Mendapatkan IP Address
+    const pingUrl = `${apiBaseUrl}/ping`;
 
     try {
-        const response = await fetch(registerUrl, {
-            method: "POST",
+        const response = await fetch(pingUrl, {
+            method: 'POST',
             headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${authToken}`
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ ipAddress, hardwareId })
+            body: JSON.stringify({
+                nodeId,
+                hardwareId
+            }),
         });
 
-        const data = await response.json();
-        return data;
+        if (!response.ok) {
+            console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}`);
+        } else {
+            console.log(`[${new Date().toISOString()}] Ping successful for token: ${authToken}, NodeId: ${nodeId}`);
+        }
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error registering node for token ${authToken}:`, error);
-        return null; // Mengembalikan null jika terjadi error
-    }
-}
-
-// Fungsi untuk ping setiap akun setelah semua akun selesai diproses
-async function pingAllAccounts(authTokens) {
-    const fetch = await loadFetch();
-
-    for (let i = 0; i < authTokens.length; i++) {
-        const authToken = authTokens[i];
-        console.log(`[${new Date().toISOString()}] Pinging account with authToken: ${authToken}`);
-
-        const pingUrl = `${apiBaseUrl}/ping`; // URL ping yang sesuai
-
-        try {
-            const response = await fetch(pingUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, Status: ${response.status}`);
-            } else {
-                console.log(`[${new Date().toISOString()}] Ping successful for token: ${authToken}`);
-            }
-        } catch (error) {
-            console.error(`[${new Date().toISOString()}] Error pinging token: ${authToken}`, error);
-        }
-
-        // Delay 5 menit setelah setiap akun diping
-        if (i < authTokens.length - 1) {
-            console.log(`[${new Date().toISOString()}] Waiting for 5 minutes before pinging next account...`);
-            await delay(300000); // Delay 5 menit
-        }
+        console.error(`[${new Date().toISOString()}] Error pinging node for token: ${authToken}, NodeId: ${nodeId}`, error);
     }
 }
 
@@ -139,12 +114,8 @@ async function runAll() {
                 const { nodeId, hardwareId } = nodeData;
                 console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
 
-                const registrationResponse = await registerNode(nodeId, hardwareId, authToken);
-                if (registrationResponse) {
-                    console.log(`[${new Date().toISOString()}] Node registration completed for token ${authToken}.`);
-                } else {
-                    console.error(`[${new Date().toISOString()}] Registration failed for token ${authToken}.`);
-                }
+                // Lakukan ping setelah mengambil NodeId dan HardwareId
+                await pingNode(nodeId, hardwareId, authToken);
             }
 
             // Menunggu 3 detik setelah memproses setiap akun
@@ -157,20 +128,11 @@ async function runAll() {
         console.log(`[${new Date().toISOString()}] All accounts processed successfully`);
 
         // Setelah semua akun diproses, lakukan ping ke semua akun
-        await pingAllAccounts(authTokens);
         console.log(`[${new Date().toISOString()}] All accounts have been pinged.`);
 
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred:`, error);
     }
-}
-
-// Fungsi untuk mengambil IP Address
-async function fetchIpAddress() {
-    const fetch = await loadFetch();
-    const response = await fetch(ipServiceUrl);
-    const data = await response.json();
-    return data.ip;
 }
 
 runAll();
