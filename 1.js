@@ -1,14 +1,7 @@
 const fs = require('fs').promises;
+const axios = require('axios');
 
-async function loadFetch() {
-    const fetch = await import('node-fetch').then(module => module.default);
-    return fetch;
-}
-
-const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
-const ipServiceUrl = "https://tight-block-2413.txlabs.workers.dev";
-
-// Fungsi delay
+// Fungsi delay untuk menunggu beberapa waktu
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -16,83 +9,61 @@ async function delay(ms) {
 // Membaca semua token otentikasi dari file
 async function readAuthTokens() {
     const data = await fs.readFile('user.txt', 'utf-8');
-    return data
-        .split('\n')
-        .map(token => token.trim())
-        .filter(token => token.length > 0); // Hanya token yang valid
-}
-
-// Fungsi untuk mengambil IP Address
-async function fetchIpAddress() {
-    const fetch = await loadFetch();
-    const response = await fetch(ipServiceUrl);
-    const data = await response.json();
-    return data.ip;
+    return data.split('\n').map(token => token.trim());
 }
 
 // Mengambil data node untuk setiap akun
 async function getNodeData(authToken) {
+    const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
 
     try {
-        const fetch = await loadFetch();
-        const response = await fetch(nodesUrl, {
-            method: 'GET',
+        const response = await axios.get(nodesUrl, {
             headers: {
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json',
-            },
+            }
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = response.data;
         const validNodes = data.filter(node => node.pubKey.length >= 48 && node.pubKey.length <= 55);
-
+        
         if (validNodes.length === 0) {
-            console.error(`[${new Date().toISOString()}] No valid node found for token: ${authToken}`);
             throw new Error("No valid node found.");
         }
 
         const node = validNodes[0];
         return { nodeId: node.pubKey, hardwareId: node.hardwareId };
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error fetching node data for token: ${authToken}:`, error);
-        return null; // Mengembalikan null jika terjadi error
+        console.error(`Error fetching node data for token: ${authToken}:`, error);
+        return null;
     }
 }
 
-// Fungsi untuk melakukan ping dengan menggunakan nodeId, hardwareId, dan authToken
+// Ping node dengan nodeId, hardwareId, dan authToken
 async function pingNode(nodeId, hardwareId, authToken) {
-    const fetch = await loadFetch();
+    const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const pingUrl = `${apiBaseUrl}/ping`;
 
     try {
-        const response = await fetch(pingUrl, {
-            method: 'POST',
+        const response = await axios.post(pingUrl, {
+            nodeId,
+            hardwareId,
+        }, {
             headers: {
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                nodeId,
-                hardwareId
-            }),
+            }
         });
 
-        if (!response.ok) {
-            console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}`);
-        } else {
-            console.log(`[${new Date().toISOString()}] Ping successful for token: ${authToken}, NodeId: ${nodeId}`);
-        }
+        console.log(`[${new Date().toISOString()}] Ping successful for token: ${authToken}, NodeId: ${nodeId}`);
+
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error pinging node for token: ${authToken}, NodeId: ${nodeId}`, error);
+        console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}:`, error);
     }
 }
 
-// Fungsi utama untuk menjalankan semua akun
+// Fungsi utama untuk menjalankan semua akun secara paralel dengan delay antar akun
 async function runAll() {
     try {
         const authTokens = await readAuthTokens(); // Membaca semua token otentikasi
@@ -101,35 +72,26 @@ async function runAll() {
             const authToken = authTokens[i];
             console.log(`[${new Date().toISOString()}] Processing account with authToken: ${authToken}`);
 
-            // Validasi token sebelum memproses
-            if (!authToken) {
-                console.error(`[${new Date().toISOString()}] Skipping invalid or empty token.`);
-                continue;
-            }
-
             const nodeData = await getNodeData(authToken);
-            if (!nodeData) {
-                console.error(`[${new Date().toISOString()}] Skipping account due to failure in fetching node data.`);
-            } else {
+            if (nodeData) {
                 const { nodeId, hardwareId } = nodeData;
-                console.log(`[${new Date().toISOString()}] Retrieved NodeId: ${nodeId}, HardwareId: ${hardwareId}`);
-
-                // Lakukan ping setelah mengambil NodeId dan HardwareId
-                await pingNode(nodeId, hardwareId, authToken);
+                await pingNode(nodeId, hardwareId, authToken); // Lakukan ping setelah mengambil NodeId dan HardwareId
             }
 
             // Menunggu 3 detik setelah memproses setiap akun
             if (i < authTokens.length - 1) {
-                console.log(`[${new Date().toISOString()}] Waiting for 3 seconds before processing next account...`);
-                await delay(3000); // Menunggu 3 detik
+                await delay(3000); // Menunggu 3 detik sebelum melanjutkan ke akun berikutnya
             }
         }
 
         console.log(`[${new Date().toISOString()}] All accounts processed successfully`);
+        
+        // Menunggu 5 menit setelah setiap ping selesai, sebelum melanjutkan ke ping berikutnya
+        console.log(`[${new Date().toISOString()}] Waiting for 5 minutes before next ping...`);
+        await delay(5 * 60 * 1000); // Delay 5 menit untuk ping berikutnya
 
-        // Setelah semua akun diproses, lakukan ping ke semua akun
-        console.log(`[${new Date().toISOString()}] All accounts have been pinged.`);
-
+        console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
+        runAll(); // Mulai lagi ping untuk semua akun
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred:`, error);
     }
