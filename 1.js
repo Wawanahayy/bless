@@ -40,18 +40,19 @@ async function getNodeData(authToken) {
     }
 }
 
-// Ping node dengan nodeId, hardwareId, dan authToken
+// Fungsi untuk ping node dengan benar
 async function pingNode(nodeId, hardwareId, authToken) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const pingUrl = `${apiBaseUrl}/ping`;
 
     try {
+        // Pastikan token dikirim dengan format yang benar dalam header
         const response = await axios.post(pingUrl, {
             nodeId,
             hardwareId,
         }, {
             headers: {
-                'Authorization': `Bearer ${authToken}`,
+                'Authorization': `Bearer ${authToken}`,  // Format yang benar
                 'Content-Type': 'application/json',
             }
         });
@@ -62,6 +63,7 @@ async function pingNode(nodeId, hardwareId, authToken) {
         console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}:`, error);
     }
 }
+
 
 // Fungsi utama untuk menjalankan semua akun secara paralel dengan delay antar akun
 async function runAll() {
