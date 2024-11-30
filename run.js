@@ -192,7 +192,7 @@ async function runAll() {
         setInterval(async () => {
             console.log(`[${new Date().toISOString()}] Sending ping...`);
             await pingNodeWithRetry(nodeId); // Menggunakan retry tanpa batas percobaan dalam interval
-        }, 60000);  // Mengirim ping setiap 60 detik
+        }, 300000);  // Mengirim ping setiap 60 detik
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred:`, error);
     }
