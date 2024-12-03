@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const readline = require('readline');
 const axios = require('axios');
-const HttpsProxyAgent = require('https-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 
 // Fungsi delay untuk menunggu beberapa waktu
