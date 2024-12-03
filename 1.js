@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const axios = require('axios');
 const readline = require('readline');
+const SocksProxyAgent = require('axios-socks5-agent'); // Correct import
 
 // Fungsi delay untuk menunggu beberapa waktu
 async function delay(ms) {
@@ -46,11 +47,10 @@ async function getNodeData(authToken, proxy = null) {
         }
     };
 
-    // Jika menggunakan proxy
+    // Check if proxy is provided
     if (proxy) {
-        const SocksProxyAgent = require('axios-socks5-agent'); // Correct import
-        const agent = new SocksProxyAgent(proxy); // Correct instantiation
-        axiosConfig.httpAgent = agent;
+        const agent = new SocksProxyAgent(proxy); // Create the agent
+        axiosConfig.httpAgent = agent; // Attach the agent
         axiosConfig.httpsAgent = agent;
     }
 
@@ -70,7 +70,6 @@ async function getNodeData(authToken, proxy = null) {
         return null;
     }
 }
-
 
 // Fungsi untuk ping node dengan benar
 async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
