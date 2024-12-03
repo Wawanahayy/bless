@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const axios = require('axios');
+const { SocksProxyAgent } = require('axios-socks5-agent');
 const readline = require('readline');
 
 // Fungsi delay untuk menunggu beberapa waktu
@@ -24,7 +25,6 @@ async function askQuestion(query) {
     return new Promise(resolve => rl.question(query, resolve));
 }
 
-// Mengambil data node untuk setiap akun
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -38,7 +38,7 @@ async function getNodeData(authToken, proxy = null) {
 
     // Jika menggunakan proxy
     if (proxy) {
-        const SocksProxyAgent = require('axios-socks5-agent');
+        // Membuat instance proxy hanya jika diperlukan
         const agent = new SocksProxyAgent(proxy);
         axiosConfig.httpAgent = agent;
         axiosConfig.httpsAgent = agent;
