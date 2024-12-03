@@ -105,7 +105,6 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
     }
 }
 
-// Fungsi utama untuk menjalankan semua akun secara paralel dengan delay antar akun
 async function runAll() {
     try {
         const authTokens = await readAuthTokens(); // Membaca semua token otentikasi
@@ -143,7 +142,8 @@ async function runAll() {
         await delay(5 * 60 * 1000); // Delay 5 menit untuk ping berikutnya
 
         console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
-        runAll(); // Mulai lagi ping untuk semua akun
+        // Gunakan setInterval atau setTimeout untuk memulai ping lagi, bukan runAll secara rekursif
+        setTimeout(runAll, 5 * 60 * 1000); // Menunggu 5 menit dan memulai lagi
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred: ${error.message}`);
     } finally {
