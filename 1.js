@@ -38,7 +38,6 @@ async function getNodeData(authToken, proxy = null) {
 
     // Jika menggunakan proxy
     if (proxy) {
-        // Membuat instance proxy hanya jika diperlukan
         const agent = new SocksProxyAgent(proxy);
         axiosConfig.httpAgent = agent;
         axiosConfig.httpsAgent = agent;
@@ -75,7 +74,6 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
 
     // Jika menggunakan proxy
     if (proxy) {
-        const SocksProxyAgent = require('axios-socks5-agent');
         const agent = new SocksProxyAgent(proxy);
         axiosConfig.httpAgent = agent;
         axiosConfig.httpsAgent = agent;
@@ -144,13 +142,14 @@ async function runAll() {
         await delay(5 * 60 * 1000); // Delay 5 menit untuk ping berikutnya
 
         console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
-        runAll(); // Mulai lagi ping untuk semua akun
+        
+        // Loop untuk terus memproses akun secara periodik
+        setInterval(runAll, 5 * 60 * 1000); // Memanggil `runAll` setiap 5 menit
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred: ${error.message}`);
     } finally {
         rl.close();
     }
 }
-
 
 runAll();
