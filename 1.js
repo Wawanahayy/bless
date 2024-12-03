@@ -94,6 +94,16 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
     }
 }
 
+async function readProxyFromFile() {
+    try {
+        const data = await fs.readFile('proxy.txt', 'utf-8');
+        return data.trim(); // Menghapus spasi atau karakter ekstra
+    } catch (error) {
+        console.error('Error reading proxy file:', error.message);
+        return null;
+    }
+}
+
 async function runAll() {
     try {
         const authTokens = await readAuthTokens(); // Membaca semua token otentikasi
@@ -103,7 +113,10 @@ async function runAll() {
 
         let proxy = null;
         if (useProxyAnswer.trim().toLowerCase() === 'yes') {
-            proxy = await askQuestion('Please enter the proxy (format: socks5://user:password@ip:port): ');
+            proxy = await readProxyFromFile(); // Membaca proxy dari file jika pengguna memilih 'yes'
+            if (!proxy) {
+                console.log('No proxy found in proxy.txt, continuing without proxy.');
+            }
         }
 
         // Proses setiap akun
@@ -138,5 +151,6 @@ async function runAll() {
         rl.close();
     }
 }
+
 
 runAll();
