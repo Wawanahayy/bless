@@ -1,6 +1,8 @@
 const fs = require('fs').promises;
 const axios = require('axios');
 const readline = require('readline');
+const { SocksProxyAgent } = require('socks-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // Fungsi delay untuk menunggu beberapa waktu
 async function delay(ms) {
@@ -24,7 +26,7 @@ async function askQuestion(query) {
     return new Promise(resolve => rl.question(query, resolve));
 }
 
-// Mengambil data node untuk setiap akun
+
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -38,10 +40,16 @@ async function getNodeData(authToken, proxy = null) {
 
     // Jika menggunakan proxy
     if (proxy) {
-        const SocksProxyAgent = require('axios-socks5-agent');
-        const agent = new SocksProxyAgent(proxy);
-        axiosConfig.httpAgent = agent;
-        axiosConfig.httpsAgent = agent;
+        try {
+            const proxyAgent = proxy.startsWith('socks5')
+                ? new SocksProxyAgent(proxy)
+                : new HttpsProxyAgent(proxy);
+            axiosConfig.httpAgent = proxyAgent;
+            axiosConfig.httpsAgent = proxyAgent;
+        } catch (err) {
+            console.error(`Invalid proxy format for proxy: ${proxy}`);
+            return null;
+        }
     }
 
     try {
@@ -60,6 +68,7 @@ async function getNodeData(authToken, proxy = null) {
         return null;
     }
 }
+
 
 // Fungsi untuk ping node dengan benar
 async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
