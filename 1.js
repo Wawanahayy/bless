@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const axios = require('axios');
-const { SocksProxyAgent } = require('socks-proxy-agent');
+const SocksProxyAgent = require('socks-proxy-agent');
 const { HttpsAgent } = require('https-proxy-agent');
 const { HttpAgent } = require('http-proxy-agent');
 
@@ -21,7 +21,6 @@ async function readProxies() {
     return data.split('\n').map(proxy => proxy.trim()).filter(proxy => proxy.length > 0);  // Filter empty proxies
 }
 
-
 // Fungsi untuk mendapatkan konfigurasi proxy
 function getProxyConfig(proxy) {
     const [protocol, rest] = proxy.split('://');
@@ -33,14 +32,13 @@ function getProxyConfig(proxy) {
     const proxyUrl = `${protocol}://${ip}:${port}`;
 
     if (protocol === 'http' || protocol === 'https') {
-        agent = new axios.Agent({ 
-            protocol: `${protocol}:`, 
-            host: ip, 
+        agent = new (protocol === 'http' ? HttpAgent : HttpsAgent)({
+            host: ip,
             port: parseInt(port),
-            auth: { username, password }
+            auth: username && password ? `${username}:${password}` : undefined,
         });
     } else if (protocol === 'socks5') {
-        agent = new SocksProxyAgent(proxyUrl);
+        agent = new SocksProxyAgent(proxyUrl); // Using SOCKS5 Agent
     } else {
         throw new Error(`Unsupported proxy protocol: ${protocol}`);
     }
@@ -48,7 +46,6 @@ function getProxyConfig(proxy) {
     return { httpAgent: agent, httpsAgent: agent };
 }
 
-// Mengambil data node untuk setiap akun
 // Mengambil data node untuk setiap akun
 async function getNodeData(authToken, proxy) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
@@ -62,7 +59,7 @@ async function getNodeData(authToken, proxy) {
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json',
             },
-            ...proxyConfig // Tambahkan konfigurasi proxy pada permintaan
+            ...proxyConfig // Menambahkan konfigurasi proxy pada permintaan
         });
 
         const data = response.data;
@@ -104,6 +101,7 @@ async function pingNode(nodeId, hardwareId, authToken, accountIndex, proxy) {
 
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Ping failed for token: (Account ${accountIndex}) | NodeId: ${nodeId}`);
+        console.error(`[${new Date().toISOString()}] Error: ${error.message}`);
     }
 }
 
