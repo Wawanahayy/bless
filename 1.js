@@ -1,6 +1,5 @@
 const fs = require('fs').promises;
 const axios = require('axios');
-const SocksProxyAgent = require('axios-socks5-agent').default;
 const readline = require('readline');
 
 // Fungsi delay untuk menunggu beberapa waktu
@@ -25,6 +24,7 @@ async function askQuestion(query) {
     return new Promise(resolve => rl.question(query, resolve));
 }
 
+// Mengambil data node untuk setiap akun
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -38,6 +38,7 @@ async function getNodeData(authToken, proxy = null) {
 
     // Jika menggunakan proxy
     if (proxy) {
+        const SocksProxyAgent = require('axios-socks5-agent');
         const agent = new SocksProxyAgent(proxy);
         axiosConfig.httpAgent = agent;
         axiosConfig.httpsAgent = agent;
@@ -74,6 +75,7 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
 
     // Jika menggunakan proxy
     if (proxy) {
+        const SocksProxyAgent = require('axios-socks5-agent');
         const agent = new SocksProxyAgent(proxy);
         axiosConfig.httpAgent = agent;
         axiosConfig.httpsAgent = agent;
@@ -92,36 +94,30 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
     }
 }
 
-async function readProxyFromFile() {
-    try {
-        const data = await fs.readFile('proxy.txt', 'utf-8');
-        return data.trim(); // Menghapus spasi atau karakter ekstra
-    } catch (error) {
-        console.error('Error reading proxy file:', error.message);
-        return null;
-    }
-}
-
+// Fungsi utama untuk menjalankan semua akun secara paralel dengan delay antar akun
 async function runAll() {
     try {
         const authTokens = await readAuthTokens(); // Membaca semua token otentikasi
-        
-        // Menanyakan apakah ingin menggunakan proxy untuk semua akun
-        const useProxyAnswer = await askQuestion('Do you want to use a proxy for all accounts? (yes/no): ');
+        const proxyAnswers = [];
 
-        let proxy = null;
-        if (useProxyAnswer.trim().toLowerCase() === 'yes') {
-            proxy = await readProxyFromFile(); // Membaca proxy dari file jika pengguna memilih 'yes'
-            if (!proxy) {
-                console.log('No proxy found in proxy.txt, continuing without proxy.');
-            }
-        }
-
-        // Proses setiap akun
+        // Pertanyaan terkait proxy untuk setiap akun
         for (let i = 0; i < authTokens.length; i++) {
             const authToken = authTokens[i];
+            const answer = await askQuestion(`Do you want to use a proxy for Account ${i + 1}? (yes/no): `);
+            proxyAnswers.push(answer.trim().toLowerCase() === 'yes');
+        }
+
+        for (let i = 0; i < authTokens.length; i++) {
+            const authToken = authTokens[i];
+            const useProxy = proxyAnswers[i];
 
             console.log(`[${new Date().toISOString()}] Processing account ${i + 1} with token`);
+
+            let proxy = null;
+            if (useProxy) {
+                const proxyInput = await askQuestion(`Please enter the proxy for Account ${i + 1} (format: socks5://user:password@ip:port): `);
+                proxy = proxyInput.trim();
+            }
 
             const nodeData = await getNodeData(authToken, proxy);
             if (nodeData) {
@@ -142,9 +138,7 @@ async function runAll() {
         await delay(5 * 60 * 1000); // Delay 5 menit untuk ping berikutnya
 
         console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
-        
-        // Loop untuk terus memproses akun secara periodik
-        setInterval(runAll, 5 * 60 * 1000); // Memanggil `runAll` setiap 5 menit
+        runAll(); // Mulai lagi ping untuk semua akun
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred: ${error.message}`);
     } finally {
