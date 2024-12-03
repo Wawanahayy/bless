@@ -127,7 +127,8 @@ async function runAll() {
         console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
         await runAll(); // Call it again after delay (this can be adjusted if you need an exit condition)
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] An error occurred`);
+        console.error(`[${new Date().toISOString()}] An error occurred: ${error.message}`);
+        console.error(error.stack); // Menampilkan stack trace untuk debugging lebih lanjut
     }
 }
 
