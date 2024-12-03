@@ -48,8 +48,8 @@ async function getNodeData(authToken, proxy = null) {
 
     // Jika menggunakan proxy
     if (proxy) {
-        const SocksProxyAgent = require('axios-socks5-agent').default;
-        const agent = new SocksProxyAgent(proxy);
+        const SocksProxyAgent = require('axios-socks5-agent'); // Correct import
+        const agent = new SocksProxyAgent(proxy); // Correct instantiation
         axiosConfig.httpAgent = agent;
         axiosConfig.httpsAgent = agent;
     }
