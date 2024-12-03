@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const readline = require('readline');
 const axios = require('axios');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+const HttpsProxyAgent = require('https-proxy-agent'); 
 
 
 // Fungsi delay untuk menunggu beberapa waktu
@@ -40,7 +40,8 @@ async function getNodeData(authToken, proxy = null) {
 
     if (proxy) {
         try {
-            const agent = HttpsProxyAgent(proxy); // Panggil sebagai fungsi
+            // Gunakan 'new' untuk membuat instance proxy agent
+            const agent = new HttpsProxyAgent(proxy);
             axiosConfig.httpAgent = agent;
             axiosConfig.httpsAgent = agent;
             console.log(`Proxy agent configured for proxy: ${proxy}`);
