@@ -27,6 +27,10 @@ async function askQuestion(query) {
 }
 
 
+const axios = require('axios');
+const { SocksProxyAgent } = require('socks-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -38,12 +42,18 @@ async function getNodeData(authToken, proxy = null) {
         }
     };
 
-    // Jika menggunakan proxy
+    // Konfigurasi proxy jika ada
     if (proxy) {
         try {
-            const proxyAgent = proxy.startsWith('socks5')
-                ? new SocksProxyAgent(proxy)
-                : new HttpsProxyAgent(proxy);
+            let proxyAgent;
+            if (proxy.startsWith('socks5')) {
+                proxyAgent = new SocksProxyAgent(proxy);
+            } else if (proxy.startsWith('http') || proxy.startsWith('https')) {
+                proxyAgent = new HttpsProxyAgent(proxy);
+            } else {
+                throw new Error('Invalid proxy format.');
+            }
+
             axiosConfig.httpAgent = proxyAgent;
             axiosConfig.httpsAgent = proxyAgent;
         } catch (err) {
@@ -68,7 +78,6 @@ async function getNodeData(authToken, proxy = null) {
         return null;
     }
 }
-
 
 // Fungsi untuk ping node dengan benar
 async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
