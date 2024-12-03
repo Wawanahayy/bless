@@ -24,6 +24,17 @@ async function askQuestion(query) {
     return new Promise(resolve => rl.question(query, resolve));
 }
 
+// Membaca proxy dari file proxy.txt
+async function readProxy() {
+    try {
+        const proxyData = await fs.readFile('proxy.txt', 'utf-8');
+        return proxyData.trim() ? proxyData.trim() : null;
+    } catch (error) {
+        console.error("Error reading proxy.txt:", error.message);
+        return null;
+    }
+}
+
 // Mengambil data node untuk setiap akun
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
@@ -87,7 +98,7 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
             hardwareId,
         }, axiosConfig);
 
-        console.log(`[${new Date().toISOString()}] Ping successful for token: (Account) | NodeId: ${nodeId}`);
+        console.log(`[${new Date().toISOString()}] Ping successful for token: (Account) | NodeId: ${nodeId} | proxy: ${proxy ? 'ACTIVE' : 'NO'}`);
 
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}:`, error.message);
@@ -98,26 +109,20 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
 async function runAll() {
     try {
         const authTokens = await readAuthTokens(); // Membaca semua token otentikasi
-        const proxyAnswers = [];
+        const useProxy = await askQuestion("Do you want to use a proxy for all accounts? (yes/no): ");
+        let proxy = null;
 
-        // Pertanyaan terkait proxy untuk setiap akun
-        for (let i = 0; i < authTokens.length; i++) {
-            const authToken = authTokens[i];
-            const answer = await askQuestion(`Do you want to use a proxy for Account ${i + 1}? (yes/no): `);
-            proxyAnswers.push(answer.trim().toLowerCase() === 'yes');
+        // Jika menggunakan proxy, baca proxy dari file proxy.txt
+        if (useProxy.trim().toLowerCase() === 'yes') {
+            proxy = await readProxy();
+            if (!proxy) {
+                console.log("No proxy found in proxy.txt, proceeding without proxy.");
+            }
         }
 
         for (let i = 0; i < authTokens.length; i++) {
             const authToken = authTokens[i];
-            const useProxy = proxyAnswers[i];
-
             console.log(`[${new Date().toISOString()}] Processing account ${i + 1} with token`);
-
-            let proxy = null;
-            if (useProxy) {
-                const proxyInput = await askQuestion(`Please enter the proxy for Account ${i + 1} (format: socks5://user:password@ip:port): `);
-                proxy = proxyInput.trim();
-            }
 
             const nodeData = await getNodeData(authToken, proxy);
             if (nodeData) {
