@@ -27,9 +27,6 @@ async function askQuestion(query) {
 }
 
 
-const axios = require('axios');
-const { SocksProxyAgent } = require('socks-proxy-agent');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
