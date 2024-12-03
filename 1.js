@@ -26,6 +26,7 @@ async function askQuestion(query) {
     return new Promise(resolve => rl.question(query, resolve));
 }
 
+
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -39,7 +40,7 @@ async function getNodeData(authToken, proxy = null) {
 
     if (proxy) {
         try {
-            const agent = new HttpsProxyAgent(proxy);
+            const agent = HttpsProxyAgent(proxy); // Panggil sebagai fungsi
             axiosConfig.httpAgent = agent;
             axiosConfig.httpsAgent = agent;
             console.log(`Proxy agent configured for proxy: ${proxy}`);
@@ -65,6 +66,7 @@ async function getNodeData(authToken, proxy = null) {
         return null;
     }
 }
+
 // Fungsi untuk ping node dengan benar
 async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
