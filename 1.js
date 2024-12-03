@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const axios = require('axios');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 const { HttpsAgent } = require('https-proxy-agent');
 const { HttpAgent } = require('http-proxy-agent');
 
@@ -20,21 +21,31 @@ async function readProxies() {
     return data.split('\n').map(proxy => proxy.trim()).filter(proxy => proxy.length > 0);  // Filter empty proxies
 }
 
-// Fungsi untuk memilih proxy yang akan digunakan
-function getProxyConfig(proxyUrl) {
-    const proxy = new URL(proxyUrl);
-    const agentConfig = {
-        auth: proxy.username ? `${proxy.username}:${proxy.password}` : undefined,
-    };
 
-    // Tentukan agent berdasarkan protocol
-    if (proxy.protocol === 'http:') {
-        return { httpAgent: new HttpAgent({ ...agentConfig, proxy: { host: proxy.hostname, port: proxy.port } }) };
-    } else if (proxy.protocol === 'https:') {
-        return { httpsAgent: new HttpsAgent({ ...agentConfig, proxy: { host: proxy.hostname, port: proxy.port } }) };
+// Fungsi untuk mendapatkan konfigurasi proxy
+function getProxyConfig(proxy) {
+    const [protocol, rest] = proxy.split('://');
+    const [auth, host] = rest.split('@');
+    const [username, password] = auth.split(':');
+    const [ip, port] = host.split(':');
+
+    let agent;
+    const proxyUrl = `${protocol}://${ip}:${port}`;
+
+    if (protocol === 'http' || protocol === 'https') {
+        agent = new axios.Agent({ 
+            protocol: `${protocol}:`, 
+            host: ip, 
+            port: parseInt(port),
+            auth: { username, password }
+        });
+    } else if (protocol === 'socks5') {
+        agent = new SocksProxyAgent(proxyUrl);
     } else {
-        throw new Error(`Unsupported proxy protocol: ${proxy.protocol}`);
+        throw new Error(`Unsupported proxy protocol: ${protocol}`);
     }
+
+    return { httpAgent: agent, httpsAgent: agent };
 }
 
 // Mengambil data node untuk setiap akun
