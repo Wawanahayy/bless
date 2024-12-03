@@ -1,8 +1,7 @@
 const fs = require('fs').promises;
-const readline = require('readline');
 const axios = require('axios');
-const HttpsProxyAgent = require('https-proxy-agent'); 
-
+const { HttpsAgent } = require('https-proxy-agent');
+const { HttpAgent } = require('http-proxy-agent');
 
 // Fungsi delay untuk menunggu beberapa waktu
 async function delay(ms) {
@@ -12,47 +11,48 @@ async function delay(ms) {
 // Membaca semua token otentikasi dari file
 async function readAuthTokens() {
     const data = await fs.readFile('user.txt', 'utf-8');
-    return data.split('\n').map(token => token.trim());
+    return data.split('\n').map(token => token.trim()).filter(token => token.length > 0);  // Filter empty tokens
 }
 
-// Fungsi untuk membaca input dari pengguna
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-// Fungsi untuk meminta input dan mengonfirmasi dengan yes/no
-async function askQuestion(query) {
-    return new Promise(resolve => rl.question(query, resolve));
+// Membaca proxy dari file proxy.txt
+async function readProxies() {
+    const data = await fs.readFile('proxy.txt', 'utf-8');
+    return data.split('\n').map(proxy => proxy.trim()).filter(proxy => proxy.length > 0);  // Filter empty proxies
 }
 
+// Fungsi untuk memilih proxy yang akan digunakan
+function getProxyConfig(proxyUrl) {
+    const proxy = new URL(proxyUrl);
+    const agentConfig = {
+        auth: proxy.username ? `${proxy.username}:${proxy.password}` : undefined,
+    };
 
-async function getNodeData(authToken, proxy = null) {
+    // Tentukan agent berdasarkan protocol
+    if (proxy.protocol === 'http:') {
+        return { httpAgent: new HttpAgent({ ...agentConfig, proxy: { host: proxy.hostname, port: proxy.port } }) };
+    } else if (proxy.protocol === 'https:') {
+        return { httpsAgent: new HttpsAgent({ ...agentConfig, proxy: { host: proxy.hostname, port: proxy.port } }) };
+    } else {
+        throw new Error(`Unsupported proxy protocol: ${proxy.protocol}`);
+    }
+}
+
+// Mengambil data node untuk setiap akun
+async function getNodeData(authToken, proxy) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
 
-    const axiosConfig = {
-        headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-        }
-    };
-
-    if (proxy) {
-        try {
-            // Gunakan 'new' untuk membuat instance proxy agent
-            const agent = new HttpsProxyAgent(proxy);
-            axiosConfig.httpAgent = agent;
-            axiosConfig.httpsAgent = agent;
-            console.log(`Proxy agent configured for proxy: ${proxy}`);
-        } catch (err) {
-            console.error(`Error configuring proxy agent: ${err.message}`);
-            return null;
-        }
-    }
+    const proxyConfig = getProxyConfig(proxy); // Konfigurasi proxy
 
     try {
-        const response = await axios.get(nodesUrl, axiosConfig);
+        const response = await axios.get(nodesUrl, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+            },
+            ...proxyConfig // Tambahkan konfigurasi proxy pada permintaan
+        });
+
         const data = response.data;
         const validNodes = data.filter(node => node.pubKey.length >= 48 && node.pubKey.length <= 55);
 
@@ -63,41 +63,34 @@ async function getNodeData(authToken, proxy = null) {
         const node = validNodes[0];
         return { nodeId: node.pubKey, hardwareId: node.hardwareId };
     } catch (error) {
-        console.error(`Error fetching node data for token: ${authToken}:`, error.message);
+        console.error(`Error fetching node data for token`);
         return null;
     }
 }
 
 // Fungsi untuk ping node dengan benar
-async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
+async function pingNode(nodeId, hardwareId, authToken, accountIndex, proxy) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const pingUrl = `${apiBaseUrl}/ping`;
 
-    const axiosConfig = {
-        headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-        }
-    };
-
-    // Jika menggunakan proxy
-    if (proxy) {
-        const SocksProxyAgent = require('axios-socks5-agent');
-        const agent = new SocksProxyAgent(proxy);
-        axiosConfig.httpAgent = agent;
-        axiosConfig.httpsAgent = agent;
-    }
+    const proxyConfig = getProxyConfig(proxy); // Konfigurasi proxy
 
     try {
         const response = await axios.post(pingUrl, {
             nodeId,
             hardwareId,
-        }, axiosConfig);
+        }, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+            },
+            ...proxyConfig // Tambahkan konfigurasi proxy pada permintaan
+        });
 
-        console.log(`[${new Date().toISOString()}] Ping successful for token: (Account) | NodeId: ${nodeId}`);
+        console.log(`[${new Date().toISOString()}] Ping successful for token: (Account ${accountIndex}) | NodeId: ${nodeId}`);
 
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}:`, error.message);
+        console.error(`[${new Date().toISOString()}] Ping failed for token: (Account ${accountIndex}) | NodeId: ${nodeId}`);
     }
 }
 
@@ -105,31 +98,18 @@ async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
 async function runAll() {
     try {
         const authTokens = await readAuthTokens(); // Membaca semua token otentikasi
-        const proxyAnswers = [];
-
-        // Pertanyaan terkait proxy untuk setiap akun
-        for (let i = 0; i < authTokens.length; i++) {
-            const authToken = authTokens[i];
-            const answer = await askQuestion(`Do you want to use a proxy for Account ${i + 1}? (yes/no): `);
-            proxyAnswers.push(answer.trim().toLowerCase() === 'yes');
-        }
+        const proxies = await readProxies(); // Membaca proxy dari proxy.txt
 
         for (let i = 0; i < authTokens.length; i++) {
             const authToken = authTokens[i];
-            const useProxy = proxyAnswers[i];
+            const proxy = proxies[i % proxies.length]; // Pilih proxy berdasarkan urutan
 
             console.log(`[${new Date().toISOString()}] Processing account ${i + 1} with token`);
-
-            let proxy = null;
-            if (useProxy) {
-                const proxyInput = await askQuestion(`Please enter the proxy for Account ${i + 1} (format: socks5://user:password@ip:port): `);
-                proxy = proxyInput.trim();
-            }
 
             const nodeData = await getNodeData(authToken, proxy);
             if (nodeData) {
                 const { nodeId, hardwareId } = nodeData;
-                await pingNode(nodeId, hardwareId, authToken, proxy); // Lakukan ping setelah mengambil NodeId dan HardwareId
+                await pingNode(nodeId, hardwareId, authToken, i + 1, proxy); // Lakukan ping setelah mengambil NodeId dan HardwareId
             }
 
             // Menunggu 3 detik setelah memproses setiap akun
@@ -145,11 +125,9 @@ async function runAll() {
         await delay(5 * 60 * 1000); // Delay 5 menit untuk ping berikutnya
 
         console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
-        runAll(); // Mulai lagi ping untuk semua akun
+        await runAll(); // Call it again after delay (this can be adjusted if you need an exit condition)
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] An error occurred: ${error.message}`);
-    } finally {
-        rl.close();
+        console.error(`[${new Date().toISOString()}] An error occurred`);
     }
 }
 
