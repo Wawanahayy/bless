@@ -9,7 +9,7 @@ async function delay(ms) {
 // Membaca semua token otentikasi dari file
 async function readAuthTokens() {
     const data = await fs.readFile('user.txt', 'utf-8');
-    return data.split('\n').map(token => token.trim());
+    return data.split('\n').map(token => token.trim()).filter(token => token.length > 0);  // Filter empty tokens
 }
 
 // Mengambil data node untuk setiap akun
@@ -52,7 +52,7 @@ async function pingNode(nodeId, hardwareId, authToken) {
             hardwareId,
         }, {
             headers: {
-                'Authorization': `Bearer ${authToken}`,  // Format yang benar
+                'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json',
             }
         });
@@ -63,7 +63,6 @@ async function pingNode(nodeId, hardwareId, authToken) {
         console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}:`, error);
     }
 }
-
 
 // Fungsi utama untuk menjalankan semua akun secara paralel dengan delay antar akun
 async function runAll() {
@@ -87,13 +86,13 @@ async function runAll() {
         }
 
         console.log(`[${new Date().toISOString()}] All accounts processed successfully`);
-        
+
         // Menunggu 5 menit setelah setiap ping selesai, sebelum melanjutkan ke ping berikutnya
         console.log(`[${new Date().toISOString()}] Waiting for 5 minutes before next ping...`);
         await delay(5 * 60 * 1000); // Delay 5 menit untuk ping berikutnya
 
         console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
-        runAll(); // Mulai lagi ping untuk semua akun
+        await runAll(); // Call it again after delay (this can be adjusted if you need an exit condition)
     } catch (error) {
         console.error(`[${new Date().toISOString()}] An error occurred:`, error);
     }
