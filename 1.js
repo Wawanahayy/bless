@@ -26,8 +26,6 @@ async function askQuestion(query) {
     return new Promise(resolve => rl.question(query, resolve));
 }
 
-
-
 async function getNodeData(authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -39,22 +37,30 @@ async function getNodeData(authToken, proxy = null) {
         }
     };
 
-    // Konfigurasi proxy jika ada
     if (proxy) {
         try {
             let proxyAgent;
             if (proxy.startsWith('socks5')) {
                 proxyAgent = new SocksProxyAgent(proxy);
+                axiosConfig.httpAgent = proxyAgent;
+                axiosConfig.httpsAgent = proxyAgent;
             } else if (proxy.startsWith('http') || proxy.startsWith('https')) {
-                proxyAgent = new HttpsProxyAgent(proxy);
+                const [protocol, rest] = proxy.split('://');
+                const [auth, host] = rest.split('@');
+                const [username, password] = auth.split(':');
+                const [hostname, port] = host.split(':');
+
+                axiosConfig.proxy = {
+                    protocol,
+                    host: hostname,
+                    port: Number(port),
+                    auth: { username, password }
+                };
             } else {
                 throw new Error('Invalid proxy format.');
             }
-
-            axiosConfig.httpAgent = proxyAgent;
-            axiosConfig.httpsAgent = proxyAgent;
         } catch (err) {
-            console.error(`Invalid proxy format for proxy: ${proxy}`);
+            console.error(`Error configuring proxy: ${err.message}`);
             return null;
         }
     }
@@ -75,7 +81,6 @@ async function getNodeData(authToken, proxy = null) {
         return null;
     }
 }
-
 // Fungsi untuk ping node dengan benar
 async function pingNode(nodeId, hardwareId, authToken, proxy = null) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
