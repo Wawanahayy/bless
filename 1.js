@@ -35,13 +35,13 @@ async function getNodeData(authToken) {
         const node = validNodes[0];
         return { nodeId: node.pubKey, hardwareId: node.hardwareId };
     } catch (error) {
-        console.error(`Error fetching node data for token: ${authToken}:`, error);
+        console.error(`Error fetching node data for token`);
         return null;
     }
 }
 
 // Fungsi untuk ping node dengan benar
-async function pingNode(nodeId, hardwareId, authToken) {
+async function pingNode(nodeId, hardwareId, authToken, accountIndex) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const pingUrl = `${apiBaseUrl}/ping`;
 
@@ -57,10 +57,10 @@ async function pingNode(nodeId, hardwareId, authToken) {
             }
         });
 
-        console.log(`[${new Date().toISOString()}] Ping successful for token: ${authToken}, NodeId: ${nodeId}`);
+        console.log(`[${new Date().toISOString()}] Ping successful for token: (Account ${accountIndex}) | NodeId: ${nodeId}`);
 
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Ping failed for token: ${authToken}, NodeId: ${nodeId}:`, error);
+        console.error(`[${new Date().toISOString()}] Ping failed for token: (Account ${accountIndex}) | NodeId: ${nodeId}`);
     }
 }
 
@@ -71,12 +71,12 @@ async function runAll() {
 
         for (let i = 0; i < authTokens.length; i++) {
             const authToken = authTokens[i];
-            console.log(`[${new Date().toISOString()}] Processing account with authToken: ${authToken}`);
+            console.log(`[${new Date().toISOString()}] Processing account ${i + 1} with token`);
 
             const nodeData = await getNodeData(authToken);
             if (nodeData) {
                 const { nodeId, hardwareId } = nodeData;
-                await pingNode(nodeId, hardwareId, authToken); // Lakukan ping setelah mengambil NodeId dan HardwareId
+                await pingNode(nodeId, hardwareId, authToken, i + 1); // Lakukan ping setelah mengambil NodeId dan HardwareId
             }
 
             // Menunggu 3 detik setelah memproses setiap akun
@@ -94,7 +94,7 @@ async function runAll() {
         console.log(`[${new Date().toISOString()}] Restarting ping for next round...`);
         await runAll(); // Call it again after delay (this can be adjusted if you need an exit condition)
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] An error occurred:`, error);
+        console.error(`[${new Date().toISOString()}] An error occurred`);
     }
 }
 
