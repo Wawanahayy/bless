@@ -1,7 +1,8 @@
 const fs = require('fs').promises;
 const readline = require('readline');
 const axios = require('axios');
-const { SocksProxyAgent } = require('socks-proxy-agent');
+const HttpsProxyAgent = require('https-proxy-agent');
+
 
 // Fungsi delay untuk menunggu beberapa waktu
 async function delay(ms) {
@@ -36,13 +37,14 @@ async function getNodeData(authToken, proxy = null) {
         }
     };
 
-    if (proxy && proxy.startsWith('socks5')) {
+    if (proxy) {
         try {
-            const socksAgent = new SocksProxyAgent(proxy);
-            axiosConfig.httpAgent = socksAgent;
-            axiosConfig.httpsAgent = socksAgent;
+            const agent = new HttpsProxyAgent(proxy);
+            axiosConfig.httpAgent = agent;
+            axiosConfig.httpsAgent = agent;
+            console.log(`Proxy agent configured for proxy: ${proxy}`);
         } catch (err) {
-            console.error(`Error configuring SOCKS5 proxy: ${err.message}`);
+            console.error(`Error configuring proxy agent: ${err.message}`);
             return null;
         }
     }
