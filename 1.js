@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const axios = require('axios');
-const { SocksProxyAgent } = require('axios-socks5-agent');
+const SocksProxyAgent = require('axios-socks5-agent').default;
 const readline = require('readline');
 
 // Fungsi delay untuk menunggu beberapa waktu
