@@ -1,8 +1,7 @@
 const fs = require('fs').promises;
-const axios = require('axios');
 const readline = require('readline');
+const axios = require('axios');
 const { SocksProxyAgent } = require('socks-proxy-agent');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // Fungsi delay untuk menunggu beberapa waktu
 async function delay(ms) {
@@ -37,30 +36,13 @@ async function getNodeData(authToken, proxy = null) {
         }
     };
 
-    if (proxy) {
+    if (proxy && proxy.startsWith('socks5')) {
         try {
-            let proxyAgent;
-            if (proxy.startsWith('socks5')) {
-                proxyAgent = new SocksProxyAgent(proxy);
-                axiosConfig.httpAgent = proxyAgent;
-                axiosConfig.httpsAgent = proxyAgent;
-            } else if (proxy.startsWith('http') || proxy.startsWith('https')) {
-                const [protocol, rest] = proxy.split('://');
-                const [auth, host] = rest.split('@');
-                const [username, password] = auth.split(':');
-                const [hostname, port] = host.split(':');
-
-                axiosConfig.proxy = {
-                    protocol,
-                    host: hostname,
-                    port: Number(port),
-                    auth: { username, password }
-                };
-            } else {
-                throw new Error('Invalid proxy format.');
-            }
+            const socksAgent = new SocksProxyAgent(proxy);
+            axiosConfig.httpAgent = socksAgent;
+            axiosConfig.httpsAgent = socksAgent;
         } catch (err) {
-            console.error(`Error configuring proxy: ${err.message}`);
+            console.error(`Error configuring SOCKS5 proxy: ${err.message}`);
             return null;
         }
     }
