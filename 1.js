@@ -49,6 +49,7 @@ function getProxyConfig(proxy) {
 }
 
 // Mengambil data node untuk setiap akun
+// Mengambil data node untuk setiap akun
 async function getNodeData(authToken, proxy) {
     const apiBaseUrl = "https://gateway-run.bls.dev/api/v1";
     const nodesUrl = `${apiBaseUrl}/nodes`;
@@ -74,7 +75,8 @@ async function getNodeData(authToken, proxy) {
         const node = validNodes[0];
         return { nodeId: node.pubKey, hardwareId: node.hardwareId };
     } catch (error) {
-        console.error(`Error fetching node data for token`);
+        console.error(`[${new Date().toISOString()}] Error fetching node data for token: ${error.message}`);
+        console.error(error.stack); // Log stack trace untuk debugging
         return null;
     }
 }
