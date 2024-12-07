@@ -60,7 +60,7 @@ async function promptUseProxy() {
 }
 
 async function loadFetch() {
-    const fetch = require('node-fetch');
+    const fetch = await import('node-fetch');
     return fetch;
 }
 
