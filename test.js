@@ -32,7 +32,7 @@ function logStyled(message, style = colors.info, prefix = '', suffix = '') {
 
 function logSection(title) {
     console.log(colors.dim('────────────────────────────────────────────'));
-    console.log(colors.header(`📌 ${title}`));
+    console.log(colors.header(` ${title}`));
     console.log(colors.dim('────────────────────────────────────────────'));
 }
 
@@ -40,7 +40,6 @@ function displayHeader() {
     console.log(colors.header('╔════════════════════════════════════════╗'));
     console.log(colors.header('║              WELCOME TO                ║'));
     console.log(colors.header('║           JAWA PRIDE AIRDROP           ║'));
-    console.log(colors.header('║                                        ║'));
     console.log(colors.header('╚════════════════════════════════════════╝'));
     console.log();
 }
@@ -52,7 +51,7 @@ async function promptUseProxy() {
     });
 
     return new Promise(resolve => {
-        rl.question('Apakah menggunakan proxy? (y/n): ', answer => {
+        rl.question('Apakah Anda ingin menggunakan proxy? (y/n): ', answer => {
             rl.close();
             resolve(answer.trim().toLowerCase() === 'y');
         });
@@ -60,17 +59,17 @@ async function promptUseProxy() {
 }
 
 async function loadFetch() {
-    const fetch = require('node-fetch');
+    const fetch = await import('node-fetch').then(module => module.default);
     return fetch;
 }
 
-// Mengambil IP dengan fallback
+// Ekstraksi logika utama untuk mendapatkan IP
 async function fetchIpAddressWithFallback(fetch, agent) {
     for (const url of ipServiceUrls) {
         try {
             const response = await fetch(url, { agent });
             const data = await response.json();
-            logStyled(`IP address ditemukan: ${data.ip}`, colors.ip, `🔗 Sumber: ${url}`, ' ✅');
+            logStyled(`Mendapatkan IP Address: ${data.ip}`, colors.ip, `🔗 Sumber: ${url}`, ' ✅');
             return data.ip;
         } catch (error) {
             logStyled(`Layanan IP gagal: ${error.message} (Sumber: ${url})`, colors.error, '', ' ❌');
@@ -79,7 +78,7 @@ async function fetchIpAddressWithFallback(fetch, agent) {
     throw new Error("Semua layanan IP tidak tersedia");
 }
 
-// Mengelola pendaftaran node
+// Penanganan pendaftaran node
 async function registerNode(nodeId, hardwareId, ipAddress, proxy, authToken) {
     const fetch = await loadFetch();
     const agent = proxy ? new HttpsProxyAgent(proxy) : null;
@@ -126,7 +125,7 @@ async function startSession(nodeId, proxy, authToken) {
         logStyled(`Sesi berhasil dimulai - Sesi ID: ${data.sessionId}`, colors.success);
         return data;
     } catch (error) {
-        logStyled(`Sesi gagal dimulai: ${error.message}`, colors.error);
+        logStyled(`Gagal memulai sesi: ${error.message}`, colors.error);
         throw error;
     }
 }
@@ -154,7 +153,7 @@ async function pingNode(nodeId, proxy, authToken) {
     }
 }
 
-// Proses node secara tidak terbatas
+// Pemrosesan node dalam siklus tak terbatas
 async function processNode(node, proxy, ipAddress, authToken) {
     logSection('Tugas Node');
     let pingCount = 0;
@@ -167,7 +166,7 @@ async function processNode(node, proxy, ipAddress, authToken) {
             try {
                 await pingNode(node.nodeId, proxy, authToken);
                 pingCount++;
-                logStyled(`Jumlah ping berhasil: ${pingCount}`, colors.info);
+                logStyled(`Total Ping berhasil: ${pingCount}`, colors.info);
             } catch (error) {
                 logStyled(`Ping gagal: ${error.message}`, colors.warning);
             }
