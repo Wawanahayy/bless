@@ -1,18 +1,20 @@
 {
   "dependencies": {
     "axios": "^1.7.7",
-    "chalk": "^5.3.0",
+    "chalk": "^4.1.2",
+    "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2"
   },
   "name": "bless",
+  "type": "commonjs",
   "version": "1.0.0",
   "description": "",
   "main": "run.js",
+
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "timplexz",
-  "license": "ISC",
-  "devDependencies": {}
+  "license": "ISC"
 }
